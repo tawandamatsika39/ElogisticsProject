@@ -1,0 +1,239 @@
+﻿<!DOCTYPE html>
+<html>
+<head>
+    <!--
+        Customize the content security policy in the meta tag below as needed. Add 'unsafe-inline' to default-src to enable inline JavaScript.
+        For details, see http://go.microsoft.com/fwlink/?LinkID=617521
+    -->
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self' data: gap://ready file://* *; style-src 'self' http://* https://* 'unsafe-inline'; script-src 'self' http://* https://* 'unsafe-inline' 'unsafe-eval'; media-src *">
+    <meta http-equiv="content-type" content="text/html; charset=UTF-8" />
+    <meta name="format-detection" content="telephone=no">
+    <meta name="msapplication-tap-highlight" content="no">
+    <meta name="viewport" content="user-scalable=no, initial-scale=1, maximum-scale=1, minimum-scale=1, width=device-width">
+
+    <title>App</title>
+
+    <!--Additional packages for Here Map framework-->
+    <link rel="stylesheet" type="text/css" href="https://js.api.here.com/v3/3.0/mapsjs-ui.css?dp-version=1542186754" />
+    <script type="text/javascript" src="https://js.api.here.com/v3/3.0/mapsjs-core.js"></script>
+    <script type="text/javascript" src="https://js.api.here.com/v3/3.0/mapsjs-service.js"></script>
+    <script type="text/javascript" src="https://js.api.here.com/v3/3.0/mapsjs-ui.js"></script>
+    <script type="text/javascript" src="https://js.api.here.com/v3/3.0/mapsjs-mapevents.js"></script>
+
+    <!--Responsive scripts: JQuery, Popper, Bootstrap, FontAwesome-->
+    <link href="../bower_components/bootstrap/dist/css/bootstrap.min.css" rel="stylesheet" type="text/css" />
+    <script type="text/javascript" src="../bower_components/jQuery/dist/jquery.min.js"></script>
+    <script type="text/javascript" src="../bower_components/popper.js/dist/popper.min.js"></script>
+    <script type="text/javascript" src="../bower_components/bootstrap/dist/js/bootstrap.min.js"></script>
+    <link href="../bower_components/font-awesome/css/all.css" rel="stylesheet" type="text/css"/>
+    <script type="text/javascript"src="../bower_components/font-awesome/js/all.js"></script>
+
+    <!--Stylesheet-->
+    <link rel="stylesheet" type="text/css" href="css/index.css">
+</head>
+
+<body>
+    <div class="container-fluid main-wrapper" id="mapContainer">
+        <div class="information-wrapper float-left fixed-bottom">
+            <p id="geolocation">Finding geolocation...</p>
+            <div class="buttons">
+                <button type="button" onclick="startTracking()" class="btn btn-circle btn-warning btn-xl"><i class="fas fa-play fa-1x"></i></button>
+                <button type="button" onclick="stopTracking()" class="btn btn-circle btn-warning btn-xl"><i class="fas fa-stop fa-1x"></i></button>
+            </div>
+        </div>
+    </div>
+
+    <script type="text/javascript" src="cordova.js"></script>
+    <script type="text/javascript" src="scripts/platformOverrides.js"></script>
+    <script type="text/javascript" src="scripts/index.js"></script>
+
+    <script src="https://www.gstatic.com/firebasejs/5.7.0/firebase.js"></script>
+    <script type="text/javascript">
+        // Wait for PhoneGap to load
+        document.addEventListener("deviceready", onDeviceReady, false);
+
+        // Set the configuration for your app
+        var configFirebase = {
+            apiKey: "AIzaSyAUuCiUIX4VLuRy3OziShe_HSfLwgL0rtU",
+            authDomain: "tracking-cd77d.firebaseapp.com",
+            databaseURL: "https://tracking-cd77d.firebaseio.com",
+            projectId: "tracking-cd77d",
+            storageBucket: "tracking-cd77d.appspot.com",
+            messagingSenderId: "1092137130719"
+        };
+
+        var configHere = {
+            appId: 'YVx7VH25wvkdlUFvGjC8',
+            appCode: '_DmLSgB2oR1uQ1LrG0GbVQ'
+        }
+
+        firebase.initializeApp(configFirebase);
+        var database = firebase.database(); // Get a reference to the database service
+
+        // Initialize the platform object:
+        var platform = new H.service.Platform({
+            'app_id': configHere.appId,
+            'app_code': configHere.appCode
+        });
+        var pixelRatio = window.devicePixelRatio || 1;
+        var defaultLayers = platform.createDefaultLayers({
+            tileSize: pixelRatio === 1 ? 256 : 512,
+            ppi: pixelRatio === 1 ? undefined : 320
+        });
+
+        // Obtain the default map types from the platform object
+        var maptypes = platform.createDefaultLayers();
+        // Instantiate (and display) a map object:
+        var map = new H.Map(document.getElementById('mapContainer'),
+            defaultLayers.normal.map, defaultLayers.normal.map, { pixelRatio: pixelRatio });
+
+        //Step 3: make the map interactive
+        // MapEvents enables the event system
+        // Behavior implements default interactions for pan/zoom (also on mobile touch environments)
+        var behavior = new H.mapevents.Behavior(new H.mapevents.MapEvents(map));
+
+        // Create the default UI components
+        var ui = H.ui.UI.createDefault(map, defaultLayers);
+
+        function enableTrafficInfo(map) {
+            // Show traffic tiles
+            map.setBaseLayer(defaultLayers.normal.traffic);
+
+            // Enable traffic incidents layer
+            map.addLayer(defaultLayers.incidents);
+        }
+
+        // onSuccess Geolocation
+        function onSuccess(position) {
+            var element = document.getElementById('geolocation');
+            element.innerHTML = 'Latitude: ' + position.coords.latitude + '<br />' +
+                'Longitude: ' + position.coords.longitude + '<br />' +
+                'Altitude: ' + position.coords.altitude + '<br />' +
+                'Accuracy: ' + position.coords.accuracy + '<br />' +
+                'Altitude Accuracy: ' + position.coords.altitudeAccuracy + '<br />' +
+                'Heading: ' + position.coords.heading + '<br />' +
+                'Speed: ' + position.coords.speed + '<br />' +
+                'Timestamp: ' + new Date(position.timestamp) + '<br />';
+
+            map.addObject(new H.map.Marker({
+                lat: position.coords.latitude,
+                lng: position.coords.longitude
+            }));
+            map.setCenter({ lat: position.coords.latitude, lng: position.coords.longitude });
+            map.setZoom(14);
+        }
+
+        // PhoneGap is ready
+        function onDeviceReady() {
+            navigator.geolocation.getCurrentPosition(onSuccess, onError);
+        }
+
+        // onError Callback receives a [PositionError](PositionError/positionError.html) object
+        function onError(error) {
+            alert('code: ' + error.code + '\n' +
+                'message: ' + error.message + '\n');
+        }
+
+        // onTracking update the device's current position when a change in position is detected
+        function onTracking(position) {
+            map.addObject(new H.map.Marker({
+                lat: position.coords.latitude,
+                lng: position.coords.longitude
+            }));
+
+            map.setCenter({ lat: position.coords.latitude, lng: position.coords.longitude });
+            map.setZoom(14);
+
+            // Connecting to the database and uploading un/structured data
+            $.ajax({
+                url: 'https://weather.cit.api.here.com/weather/1.0/report.json',
+                type: 'GET',
+                dataType: 'jsonp',
+                jsonp: 'jsonpcallback',
+                data: {
+                    product: 'observation',
+                    latitude: position.coords.latitude.toFixed(3),
+                    longitude: position.coords.longitude.toFixed(3),
+                    oneobservation: 'true',
+                    app_id: configHere.appId,
+                    app_code: configHere.appCode
+                },
+                success: function (data) {
+                    var weather = data;
+                    $.ajax({
+                        url: 'https://traffic.api.here.com/traffic/6.1/flow.json',
+                        type: 'GET',
+                        dataType: 'jsonp',
+                        jsonp: 'jsoncallback',
+                        data: {
+                            prox: String(position.coords.latitude.toFixed(3)) + ',' + String(position.coords.longitude.toFixed(3)) + ',15000',
+                            responseattributes: 'sh,fc',
+                            app_id: configHere.appId,
+                            app_code: configHere.appCode
+                        },
+                        success: function (data) {
+                            var trafficFlow = data;
+                            $.ajax({
+                                url: 'https://traffic.api.here.com/traffic/6.0/incidents.json',
+                                type: 'GET',
+                                dataType: 'jsonp',
+                                jsonp: 'jsoncallback',
+                                data: {
+                                    prox: String(position.coords.latitude.toFixed(3)) + ',' + String(position.coords.longitude.toFixed(3)) + ',15000',
+                                    criticality: '0,1,2,3',
+                                    app_id: configHere.appId,
+                                    app_code: configHere.appCode
+                                },
+                                success: function (data) {
+                                    var trafficIncidents = data;
+                                    var date = new Date().toUTCString();
+                                    $(function () {
+                                        message = {
+                                            'device': {
+                                                'model': device.model,
+                                                'platform': device.platform,
+                                                'uui': device.uuid,
+                                                'version': device.version,
+                                                'manufacturer': device.manufacturer,
+                                                'serial': device.serial
+                                            },
+                                            'timestamp': date,
+                                            'geolocation': {
+                                                'lat': position.coords.latitude,
+                                                'lng': position.coords.longitude,
+                                                'altitude': position.coords.altitude,
+                                                'accuracy': position.coords.accuracy,
+                                                'altitudeAccuracy': position.coords.altitudeAccuracy,
+                                                'heading': String(position.coords.heading),
+                                                'speed': String(position.coords.speed),
+                                                'timestamp': position.timestamp
+                                            },
+                                            'trafficFlow': trafficFlow,
+                                            'trafficIncidents': trafficIncidents,
+                                            'weather': weather
+                                        }
+                                        firebase.database().ref('Tracking/' + position.timestamp).set(message);
+                                        //database.ref('/Tracking').child(String(position.timestamp)).push().set(message);
+                                    });
+                                }
+                            });
+                        }
+                    });
+                }
+            });
+        }
+
+        // Starting a thread to push the device informartion
+        var watchID;
+        function startTracking() {
+            enableTrafficInfo(map); // Now enable traffic tiles and traffic incidents
+            watchID = navigator.geolocation.watchPosition(onTracking, onError, { enableHighAccuracy: true });
+        }
+
+        function stopTracking() {
+            navigator.geolocation.clearWatch(watchID);
+        }
+
+    </script>
+</body>
+</html>
